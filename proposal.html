@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ proposal.title }}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body{font-family:Inter,Segoe UI,Arial,sans-serif;background:#f4f6f8;margin:0;padding:28px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+    h1{color:#003366;margin:0}
+    .container{max-width:980px;margin:0 auto}
+    .card{background:#fff;padding:18px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:18px}
+    .comment{background:#fafafa;padding:10px;border:1px solid #eee;border-radius:6px;margin-bottom:10px}
+    .meta{font-size:13px;color:#555;margin-bottom:8px}
+    input,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px;margin-bottom:10px}
+    button{background:#003366;color:white;padding:10px 14px;border:none;border-radius:6px;cursor:pointer}
+    .pdf-embed{width:100%;height:600px;border:1px solid #ddd;border-radius:6px}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>{{ proposal.title }}</h1>
+      <div style="color:#666;font-size:14px">Uploaded on {{ proposal.uploaded_at }}</div>
+    </div>
+    <div>
+      <a href="{{ url_for('home') }}">Home</a>
+      {% if is_admin %}<a href="{{ url_for('admin_dashboard') }}">Admin</a>{% endif %}
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h2>Proposal document</h2>
+      {% if proposal.filename %}
+        <iframe class="pdf-embed" src="{{ url_for('serve_proposal_file', filename=proposal.filename) }}"></iframe>
+      {% else %}
+        <p>No PDF uploaded for this proposal yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Submit your feedback</h2>
+      <form action="{{ url_for('submit_comment') }}" method="post">
+        <input name="name" placeholder="Your name (optional)">
+        <input name="profession" placeholder="Profession (optional)">
+        <input type="hidden" name="proposal" value="{{ proposal.id }}">
+        <label for="comment">Comment</label>
+        <textarea id="comment" name="comment" rows="5" required placeholder="Write your comment..."></textarea>
+        <div style="display:flex;gap:8px;">
+          <button type="submit">Submit comment</button>
+          <button type="reset" style="background:#6c757d">Reset</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Public comments</h2>
+      {% if comments %}
+        {% for c in comments %}
+          <div class="comment">
+            <div class="meta"><strong>{{ c.name or 'Anonymous' }}</strong> • {{ c.profession or 'Citizen' }} • {{ c.date }}</div>
+            <div>{{ c.original if c.original else c.text }}</div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>No comments yet. Be the first to comment.</p>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
