@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body{font-family:Inter,Segoe UI,Arial,sans-serif;background:#f4f6f8;margin:0;padding:28px}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    h1{color:#003366;margin:0}
+    .card{background:#fff;padding:18px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:18px}
+    .list a{display:block;padding:10px 12px;border-radius:6px;color:#003366;text-decoration:none;margin-bottom:8px;border:1px solid #eef2f6}
+    .actions{display:flex;gap:8px}
+    .btn{padding:8px 10px;background:#003366;color:#fff;border:none;border-radius:6px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Admin Dashboard</h1>
+    <div>
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('logout') }}" style="margin-left:12px">Logout</a>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="actions">
+      <a class="btn" href="{{ url_for('upload_proposal') }}">Upload New Proposal (PDF)</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Uploaded proposals</h2>
+    <div class="list">
+      {% for p in proposals %}
+        <a href="{{ url_for('analysis', proposal_id=p.id) }}">{{ p.title }} • uploaded {{ p.uploaded_at }} {% if p.filename %}(PDF){% endif %}</a>
+      {% endfor %}
+    </div>
+  </div>
+</body>
+</html>
