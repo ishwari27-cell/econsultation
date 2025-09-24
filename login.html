@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Admin Login</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body{font-family:Inter,Segoe UI,Arial,sans-serif;background:#f4f6f8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    .box{width:360px;background:#fff;padding:24px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.08)}
+    input{width:100%;padding:10px;margin-bottom:12px;border:1px solid #ddd;border-radius:6px}
+    button{width:100%;padding:10px;background:#003366;color:#fff;border:none;border-radius:6px;cursor:pointer}
+    .msg{color:#c00;margin-bottom:12px}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2 style="color:#003366;margin-top:0">Admin login</h2>
+    {% if error %}<div class="msg">{{ error }}</div>{% endif %}
+    <form method="post">
+      <input name="username" placeholder="Username" required>
+      <input name="password" placeholder="Password" type="password" required>
+      <button type="submit">Sign in</button>
+    </form>
+    <p style="font-size:13px;color:#666;margin-top:10px">Demo credentials: admin / securepass</p>
+  </div>
+</body>
+</html>
+
+
+
