@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Analysis — {{ proposal.title }}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body{font-family:Inter,Segoe UI,Arial,sans-serif;background:#f4f6f8;margin:0;padding:24px}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    h1{color:#003366;margin:0;font-size:20px}
+    .card{background:#fff;padding:18px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:18px}
+    .metrics{display:flex;gap:12px;margin-bottom:12px}
+    .metric{flex:1;padding:12px;border-radius:8px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.04);text-align:center}
+    .metric .v{font-weight:700;font-size:20px;color:#003366}
+    .grid{display:grid;grid-template-columns:1fr 420px;gap:20px;align-items:start}
+    .chart-container{background:#fff;padding:12px;border-radius:8px}
+    canvas{width:100% !important;height:420px !important}
+    .wordcloud img{width:100%;height:auto;border-radius:6px}
+    .comment{background:#fafafa;padding:10px;border:1px solid #eee;border-radius:6px;margin-bottom:10px}
+    .comment .meta{font-size:13px;color:#555;margin-bottom:6px}
+    .btn{padding:8px 10px;background:#003366;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px}
+    .btn.ghost{background:transparent;color:#003366;border:1px solid #dfe7ef}
+    .modal{position:fixed;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);visibility:hidden;opacity:0;transition:opacity .18s}
+    .modal.open{visibility:visible;opacity:1}
+    .modal .panel{background:#fff;padding:18px;border-radius:8px;width:520px;box-shadow:0 8px 24px rgba(0,0,0,0.18)}
+    .small-muted{font-size:13px;color:#666}
+    .controls{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-bottom:8px}
+    .pdf-link{font-size:13px;color:#0066cc;text-decoration:none}
+    .analysis-row{margin-top:8px;padding:8px;border-radius:6px;background:#f8f9fb}
+    .analysis-label{font-weight:700;color:#333;margin-bottom:6px}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Analysis — {{ proposal.title }}</h1>
+      <div class="small-muted">Uploaded on {{ proposal.uploaded_at }}</div>
+    </div>
+    <div>
+      <a href="{{ url_for('home') }}" style="margin-right:12px">Home</a>
+      {% if session.admin %}
+        <a href="{{ url_for('admin_dashboard') }}" style="margin-right:12px">Admin</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
+      {% else %}
+        <a href="{{ url_for('login') }}">Admin Login</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="card">
+    <h2 style="margin-top:0">Summary</h2>
+    <p>{{ summary }}</p>
+    <div class="metrics" style="margin-top:12px">
+      <div class="metric"><div class="v">{{ pos }}</div><div style="font-size:13px;color:#666">Positive</div></div>
+      <div class="metric"><div class="v">{{ neu }}</div><div style="font-size:13px;color:#666">Neutral</div></div>
+      <div class="metric"><div class="v">{{ neg }}</div><div style="font-size:13px;color:#666">Negative</div></div>
+    </div>
+    <div class="small-muted">Top words: {% for w,c in top_words %}{{ w }} ({{ c }}){% if not loop.last %}, {% endif %}{% endfor %}</div>
+    {% if proposal.filename %}
+      <div style="margin-top:10px"><a class="pdf-link" href="{{ url_for('serve_proposal_file', filename=proposal.filename) }}" target="_blank">Open proposal PDF</a></div>
+    {% endif %}
+  </div>
+
+  {% if session.admin %}
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Sentiment Over Time</h2>
+        <div class="chart-container"><canvas id="timelineChart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h2>Word Cloud (sentiment-bearing words only)</h2>
+        <div class="wordcloud">
+          {% if wordcloud_filename %}
+            <img src="{{ url_for('static', filename=wordcloud_filename) }}" alt="wordcloud">
+          {% else %}
+            <p>No word cloud available.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>All comments</h2>
+        {% for c in comments %}
+          <div class="comment">
+            <div class="meta"><strong>{{ c.name }}</strong> • {{ c.profession }} • {{ c.date }}</div>
+            <div>{{ c.original if c.original else c.text }}</div>
+            <div style="margin-top:8px">
+              <a class="btn ghost" href="{{ url_for('delete_comment', proposal_id=proposal.id, comment_id=c.id) }}" onclick="return confirm('Delete this comment?')">Delete</a>
+              <button class="btn" onclick="openCommentAnalysis('{{ c.id }}')">Analyze</button>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <aside>
+      <div class="card">
+        <h3>Profession Sentiment</h3>
+        <div style="margin-top:8px">
+          <label for="prof">View by profession:</label>
+          <select id="prof" style="width:100%;padding:8px;border-radius:6px;border:1px solid #ddd;margin-top:8px">
+            <option value="">All (aggregate)</option>
+            {% for p in profession_sentiments.keys() %}
+              <option value="{{ p }}">{{ p }}</option>
+            {% endfor %}
+          </select>
+          <div style="margin-top:12px">
+            <canvas id="professionPie" style="height:240px !important"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Quote Highlighter</h3>
+        <p><em>{{ quote if quote else "No repeated quote found." }}</em></p>
+        <h3 style="margin-top:12px">Controversial Phrases</h3>
+        {% if controversial_phrases %}
+          <ul>{% for p in controversial_phrases %}<li>{{ p }}</li>{% endfor %}</ul>
+        {% else %}
+          <p>None detected</p>
+        {% endif %}
+      </div>
+    </aside>
+  </div>
+
+  <!-- Modal for individual comment analysis -->
+  <div id="modal" class="modal" role="dialog" aria-hidden="true">
+    <div class="panel">
+      <button style="float:right" onclick="closeModal()">✕</button>
+      <h3>Comment analysis</h3>
+      <div id="analysisContent"><p><strong>Loading...</strong></p></div>
+    </div>
+  </div>
+
+  <script>
+    // Admin-only data and charts
+    const timelineData = {{ timeline_sentiments | tojson }};
+    const labels = Object.keys(timelineData);
+    const pos = labels.map(l => timelineData[l].positive || 0);
+    const neu = labels.map(l => timelineData[l].neutral || 0);
+    const neg = labels.map(l => timelineData[l].negative || 0);
+
+    new Chart(document.getElementById('timelineChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Positive', data: pos, borderColor: '#28a745', backgroundColor: 'rgba(40,167,69,0.12)', fill: true, tension: 0.28, pointRadius: 3 },
+          { label: 'Neutral',  data: neu, borderColor: '#6c757d', backgroundColor: 'rgba(108,117,125,0.06)', fill: true, tension: 0.28, pointRadius: 3 },
+          { label: 'Negative', data: neg, borderColor: '#dc3545', backgroundColor: 'rgba(220,53,69,0.10)', fill: true, tension: 0.28, pointRadius: 3 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { title: { display: true, text: 'Sentiment Over Time (Month-Year)' }, legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } },
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        scales: { x: { title: { display: true, text: 'Month-Year' }, grid: { display: false } }, y: { beginAtZero: true, title: { display: true, text: 'Comment Count' }, grid: { color: 'rgba(0,0,0,0.06)' } } }
+      }
+    });
+
+    const profData = {{ profession_sentiments | tojson }};
+    const pieCtx = document.getElementById('professionPie').getContext('2d');
+    let pieChart = new Chart(pieCtx, { type: 'pie', data: { labels: ['Positive','Neutral','Negative'], datasets: [{ data: [0,0,0], backgroundColor: ['#28a745','#6c757d','#dc3545'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Profession Sentiment Distribution' } } } });
+
+    function updatePie(prof) {
+      let counts = [0,0,0];
+      if (!prof) {
+        for (const p of Object.keys(profData)) {
+          counts[0] += profData[p].positive || 0;
+          counts[1] += profData[p].neutral || 0;
+          counts[2] += profData[p].negative || 0;
+        }
+      } else {
+        const e = profData[prof] || { positive:0, neutral:0, negative:0 };
+        counts = [e.positive || 0, e.neutral || 0, e.negative || 0];
+      }
+      pieChart.data.datasets[0].data = counts;
+      pieChart.update();
+    }
+    updatePie('');
+    document.getElementById('prof').addEventListener('change', function(){ updatePie(this.value); });
+
+    function openCommentAnalysis(commentId){
+      const modal = document.getElementById('modal');
+      const content = document.getElementById('analysisContent');
+      modal.classList.add('open');
+      content.innerHTML = '<p><strong>Loading...</strong></p>';
+      fetch(`{{ url_for('comment_analysis', proposal_id=proposal.id, comment_id='') }}${commentId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.error) { content.innerHTML = '<p><strong>Error: ' + data.error + '</strong></p>'; return; }
+          // Build content: author/prof/date, sentiment, top words, suggestion summary, original & translated
+          let html = `<div class="analysis-row"><div class="analysis-label">Author</div><div>${data.name} • ${data.profession} • ${data.date}</div></div>`;
+          html += `<div class="analysis-row"><div class="analysis-label">Sentiment</div><div>${data.sentiment}</div></div>`;
+          html += `<div class="analysis-row"><div class="analysis-label">Top words</div><div>${data.top_words.map(t=>t[0]+' ('+t[1]+')').join(', ')}</div></div>`;
+          if (data.summary) {
+            html += `<div class="analysis-row"><div class="analysis-label">Suggestion summary</div><div>${data.summary}</div></div>`;
+          } else {
+            html += `<div class="analysis-row"><div class="analysis-label">Suggestion summary</div><div><em>No explicit suggestions detected; see original comment.</em></div></div>`;
+          }
+          html += `<div class="analysis-row"><div class="analysis-label">Original</div><div>${data.original}</div></div>`;
+          content.innerHTML = html;
+        }).catch(err => { content.innerHTML = '<p><strong>Failed to fetch analysis</strong></p>'; });
+    }
+    function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+  </script>
+
+  {% else %}
+  <div class="card">
+    <h2>All comments</h2>
+    {% for c in comments %}
+      <div class="comment">
+        <div class="meta"><strong>{{ c.name or 'Anonymous' }}</strong> • {{ c.profession or 'Citizen' }} • {{ c.date }}</div>
+        <div>{{ c.original if c.original else c.text }}</div>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</body>
+</html>
