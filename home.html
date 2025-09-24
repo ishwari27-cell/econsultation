@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>eConsultation Portal</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body{font-family:Inter,Segoe UI,Arial,sans-serif;background:#f4f6f8;margin:0;padding:28px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+    h1{color:#003366;margin:0}
+    .topbar a{margin-left:12px;color:#003366;text-decoration:none;font-weight:600}
+    .layout{display:grid;grid-template-columns:1fr 360px;gap:24px}
+    .card{background:#fff;padding:18px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+    .proposal-list a{display:block;padding:10px 12px;border-radius:6px;color:#003366;text-decoration:none;margin-bottom:8px;border:1px solid #eef2f6}
+    input,textarea,select{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px;margin-bottom:10px}
+    button{background:#003366;color:white;padding:10px 14px;border:none;border-radius:6px;cursor:pointer}
+    .admin-banner{background:#e8f4ff;padding:10px;border-radius:8px;color:#044a96;margin-bottom:12px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>eConsultation Portal</h1>
+    <div class="topbar">
+      {% if is_admin %}
+        <span class="admin-banner">Logged in as admin</span>
+        <a href="{{ url_for('admin_dashboard') }}">Admin</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
+      {% else %}
+        <a href="{{ url_for('login') }}">Admin Login</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="layout">
+    <div>
+      <div class="card">
+        <h2>Available proposals</h2>
+        <div class="proposal-list">
+          {% for p in proposals %}
+            <a href="{{ url_for('proposal_page', proposal_id=p.id) }}">{{ p.title }} {% if p.filename %}• PDF available{% endif %}</a>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px;">
+        <h2>Quick submit feedback</h2>
+        <form action="{{ url_for('submit_comment') }}" method="post">
+          <input name="name" placeholder="Your name (optional)">
+          <input name="profession" placeholder="Profession (optional)">
+          <select name="proposal" required>
+            {% for p in proposals %}<option value="{{ p.id }}">{{ p.title }}</option>{% endfor %}
+          </select>
+          <textarea name="comment" rows="4" required placeholder="Write your comment..."></textarea>
+          <div style="display:flex;gap:8px;">
+            <button type="submit">Submit</button>
+            <button type="reset" style="background:#6c757d">Reset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>How this portal works</h2>
+        <p>Read proposal details, submit feedback publicly, and (for admins) analyze aggregated and individual comments.</p>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h2>Contact / Help</h2>
+        <p>For issues, check server logs or contact the system administrator.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
